@@ -1,5 +1,3 @@
-# multi_stock_hmm_analysis.py
-
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -100,14 +98,17 @@ def interpret_states(data, hidden_states):
         print(f"  Volatility: {volatility}")
         print(f"  {'Bullish' if avg_return > 0 else 'Bearish'} State with {'High' if volatility > 0.01 else 'Low'} Volatility")
 
+# Function to save stock data to CSV
+def save_data_to_csv(data, ticker, start_date, end_date):
+    filename = f"{ticker}_{start_date}_to_{end_date}.csv"
+    data.to_csv(filename)
+    print(f"Data saved to {filename}")
 
 def validate_tickers(ticker_list):
     valid_tickers = []
     for ticker in ticker_list:
         try:
-            # Attempt to download data for the ticker
             data = yf.download(ticker, period="1d")
-            # If data is returned, consider the ticker valid
             if not data.empty:
                 valid_tickers.append(ticker)
             else:
@@ -120,6 +121,7 @@ def main():
     # Set the start and end dates
     start_date = "2018-01-01"
     end_date = datetime.datetime.today().strftime('%Y-%m-%d')
+    
     pre_tickers = []
     ticker = input("Enter the stock tickers you'd like to see analyzed (-1 to quit): ")
     while ticker != "-1":
@@ -130,8 +132,6 @@ def main():
 
     # Set up the figure and subplots
     fig, axes = plt.subplots(len(tickers), 1, figsize=(15, 10 * len(tickers)))  # Increase height for multiple subplots
-
-    # Adjust to ensure space for each plot
     fig.subplots_adjust(hspace=0.4)
 
     # Perform analysis for each stock
@@ -156,6 +156,9 @@ def main():
         # Analyze and plot in the specified subplot
         ax1 = axes[idx] if len(tickers) > 1 else axes  # Handle single or multiple subplots
         analyze_and_plot(stock_data, hmm_model, ticker, ax1)
+
+        # Save stock data with indicators to CSV
+        save_data_to_csv(stock_data, ticker, start_date, end_date)
 
     plt.show()
 

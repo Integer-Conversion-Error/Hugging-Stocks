@@ -202,7 +202,7 @@ def get_past_six_months():
 def save_articles_to_csv(ticker, month, articles):
     """Save articles to a CSV file named based on the ticker and month if the file doesn't already exist."""
     os.makedirs(ticker, exist_ok=True)
-    csv_file_path = os.path.join(ticker, f"{ticker}_{month}.csv")
+    csv_file_path = os.path.join(ticker, f"{ticker}_sentiment_for_{month}.csv")
     
     if os.path.exists(csv_file_path):
         print(f"File {csv_file_path} already exists. Skipping write.")

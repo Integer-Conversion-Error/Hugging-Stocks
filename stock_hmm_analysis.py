@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pandas as pd
 import yfinance as yf
 from hmmlearn.hmm import GaussianHMM
@@ -100,9 +101,10 @@ def interpret_states(data, hidden_states):
 
 # Function to save stock data to CSV
 def save_data_to_csv(data, ticker, start_date, end_date):
-    filename = f"{ticker}_{start_date}_to_{end_date}.csv"
-    data.to_csv(filename)
-    print(f"Data saved to {filename}")
+    os.makedirs(ticker, exist_ok=True)
+    csv_file_path = os.path.join(ticker, f"{ticker}_{start_date}_to_{end_date}.csv")
+    data.to_csv(csv_file_path)
+    print(f"Data saved to {csv_file_path}")
 
 def validate_tickers(ticker_list):
     valid_tickers = []
@@ -123,10 +125,10 @@ def main():
     end_date = datetime.datetime.today().strftime('%Y-%m-%d')
     
     pre_tickers = []
-    ticker = input("Enter the stock tickers you'd like to see analyzed (-1 to quit): ")
+    ticker = input("Enter the stock tickers you'd like to see analyzed (-1 to quit): ").upper()
     while ticker != "-1":
         pre_tickers.append(ticker)
-        ticker = input("Enter the stock tickers you'd like to see analyzed (-1 to quit): ")
+        ticker = input("Enter the stock tickers you'd like to see analyzed (-1 to quit): ").upper()
     # List of stocks to analyze
     tickers = validate_tickers(pre_tickers)
 

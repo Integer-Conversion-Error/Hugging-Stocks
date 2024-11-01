@@ -7,10 +7,12 @@ from datetime import datetime, timedelta
 import calendar
 import csv
 import os
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+import calendar
 
 # Constants
-API_KEY = config.NEWS_API_KEY
-BASE_URL = 'https://newsapi.org/v2/everything'
+GDELT_BASE_URL = 'https://api.gdeltproject.org/api/v2/doc/doc'
 SENTIMENT_MODEL = 'nlptown/bert-base-multilingual-uncased-sentiment'
 
 # Set up sentiment analysis pipeline
@@ -26,18 +28,40 @@ def get_company_name(ticker):
         return ticker  # Fallback to ticker symbol if API fails
 
 def fetch_news(query, from_date, to_date, num_articles=100):
-    """Fetch recent news articles related to a company name within a date range using NewsAPI."""
+    """Fetch recent news articles related to a company name within a date range using GDELT Document API."""
+    # Adjust date format to YYYYMMDDHHMMSS for GDELT
+    from_date = from_date.replace("-", "") + "000000"  # Start of the day (midnight)
+    to_date = to_date.replace("-", "") + "235959"      # End of the day (just before midnight)
+
     params = {
-        'q': query,
-        'apiKey': API_KEY,
-        'language': 'en',
-        'from': from_date,
-        'to': to_date,
-        'pageSize': num_articles,
+        'query': query,
+        'mode': 'ArtList',
+        'startdatetime': from_date,
+        'enddatetime': to_date,
+        'maxrecords': num_articles,
+        'format': 'json',
+        'sourcelang': 'English',
     }
-    response = requests.get(BASE_URL, params=params)
-    articles = response.json().get('articles', [])
-    return [{'title': a['title'], 'description': a['description'], 'url': a['url']} for a in articles]
+    
+    # Make the request to GDELT
+    response = requests.get(GDELT_BASE_URL, params=params)
+    
+    # Check if the response status is OK
+    if response.status_code != 200:
+        print(f"Failed to fetch data for {query} from {from_date} to {to_date}. Status Code: {response.status_code}")
+        return []
+
+    # Attempt to parse the JSON response
+    try:
+        data = response.json()
+    except requests.exceptions.JSONDecodeError:
+        print("Response content is not in JSON format. Here is the response content:")
+        print(response.text)  # Print the raw response for debugging
+        return []
+
+    # Extract articles if available
+    articles = data.get('articles', [])
+    return [{'title': a['title'], 'description': a['seendate'], 'url': a['url']} for a in articles]
 
 def analyze_sentiment(articles):
     """Analyze sentiment of each article and return average sentiment score."""
@@ -69,28 +93,23 @@ def get_past_six_months():
     """Generate a list of the first and last dates for each of the past six months, starting from the end of the previous month."""
     # Get the last day of the previous month
     today = datetime.today()
-    first_day_of_current_month = today.replace(day=1)
-    last_day_of_previous_month = first_day_of_current_month - timedelta(days=1)
+    last_day_of_previous_month = today.replace(day=1) - relativedelta(days=1)
 
     # Initialize the months list
     months = []
     
     # Loop to calculate each month's range
-    for i in range(6):
-        # Set the last day of the month i months ago
-        last_day = last_day_of_previous_month - timedelta(days=calendar.monthrange(last_day_of_previous_month.year, last_day_of_previous_month.month)[1] * i)
-        # First day is the 1st of that month
-        first_day = last_day.replace(day=1)
+    for _ in range(6):
+        # Get the first day of the month for last_day_of_previous_month
+        first_day = last_day_of_previous_month.replace(day=1)
         
         # Append (first_day, last_day) to the list, formatted as strings
-        months.append((first_day.strftime('%Y-%m-%d'), last_day.strftime('%Y-%m-%d')))
+        months.append((first_day.strftime('%Y-%m-%d'), last_day_of_previous_month.strftime('%Y-%m-%d')))
         
-        # Update last_day_of_previous_month to the end of the previous month
-        last_day_of_previous_month = first_day - timedelta(days=1)
+        # Move to the previous month
+        last_day_of_previous_month = first_day - relativedelta(days=1)
     
     return months
-
-
 
 def save_articles_to_csv(ticker, month, articles):
     """Save articles to a CSV file named based on the ticker and month if the file doesn't already exist."""
